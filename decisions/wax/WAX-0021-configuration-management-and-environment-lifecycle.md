@@ -2,9 +2,9 @@
 id: WAX-0021
 title: "Configuration Management and Environment Lifecycle"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -21,7 +21,7 @@ Every user-configurable item is versioned. The scope of versioned configuration 
 
 ## Export and Import
 
-Configuration state can be exported from an environment as a structured package and imported into another. The import process validates the package against the target environment's schema version and module configuration before applying any changes. Conflicts are surfaced for review before the import proceeds. The export/import mechanism is the foundation of the environment promotion workflow.
+Configuration state can be exported from an environment as a structured package and imported into another. The import process validates the package against the target environment's schema version, its module configuration, and the releases the target is running, as [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md) requires, before applying any changes. A package exported from a newer installation must not introduce what the target's live code does not read. Conflicts are surfaced for review before the import proceeds. The export/import mechanism is the foundation of the environment promotion workflow.
 
 ## Environment Lifecycle Tooling
 

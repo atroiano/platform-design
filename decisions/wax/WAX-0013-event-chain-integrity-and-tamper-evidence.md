@@ -2,9 +2,9 @@
 id: WAX-0013
 title: "Event Chain Integrity and Tamper-Evidence"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -47,7 +47,7 @@ Together, the three tiers provide defense in depth. The per-aggregate chain prov
 
 ## Delta-Based External Checkpoint Anchoring
 
-The checkpoint module periodically computes a checkpoint hash covering only the events written since the previous checkpoint, a delta window rather than the full event history. The hash is submitted to an RFC 3161 trusted timestamp authority. The TSA signs the hash and returns a self-contained token recording the submitted hash, the signing time to millisecond precision, and the TSA's cryptographic signature. The token is returned to the agency and stored locally. The TSA retains no copy.
+The checkpoint module periodically computes a checkpoint hash covering only the events written since the previous checkpoint, a delta window rather than the full event history. The hash is submitted to an RFC 3161 trusted timestamp authority. The TSA signs the hash and returns a self-contained token recording the submitted hash, the signing time to millisecond precision, and the TSA's cryptographic signature. The token is returned to the agency and stored locally. The TSA retains no copy. A checkpoint window never ends above the high-water mark defined in [Wax Design Decision 1](WAX-0001-enriched-event-sourcing.md): an event from a transaction still in flight could otherwise commit inside a window whose hash has already been anchored.
 
 Delta-based checkpoints are essential for the break-glass mechanism to remain useful. A cumulative checkpoint, one that hashes the entire event history from the beginning, would be invalidated by any authorized break anywhere in history, rendering all subsequent checkpoints permanently suspect. A delta checkpoint covers only a defined window of sequence numbers. An authorized break within a window invalidates at most the checkpoint spanning that window. All prior checkpoints and all subsequent checkpoints covering events written after the break remain fully valid and independently verifiable.
 
@@ -85,13 +85,13 @@ Several RFC 3161 TSAs operate as free public services including those operated b
 
 Because the event store is permanent and the hash chain makes modification detectable, any PII that enters the event store unencrypted is there forever with no remediation path. This is not a hypothetical risk. It is a structural property of the architecture that must be addressed structurally, not procedurally.
 
-Every field in every event payload schema must carry an explicit PII classification before it can be used. The classifications are: not PII, PII (encrypted at rest using the subject's encryption key), and sensitive but not PII (encrypted for other reasons such as financial data). There is no unclassified option. A payload schema field with no classification does not compile. The module contract validator rejects any payload schema containing an unannotated field.
+Every field in every event payload schema must carry an explicit PII classification before it can be used. The classifications are: not PII, PII (encrypted at rest using the subject's encryption key), and sensitive but not PII (encrypted for other reasons such as financial data). There is no unclassified option. A payload schema field with no classification fails a startup check, and the application does not start. The module contract validator rejects any payload schema containing an unannotated field.
 
 Encryption happens at the serialization layer, not in application code. When an event is about to be written to core.event, the serialization layer inspects the payload schema annotations, identifies all PII and sensitive fields, encrypts those values using the subject's encryption key, and writes the encrypted payload. Application code never decides whether to encrypt a field. The infrastructure enforces it based on the declared schema. There is no API path for writing unencrypted PII to the event store.
 
 > **DEFENSE IN DEPTH FOR PII PROTECTION**
 >
-> **Compile-time enforcement**: payload schemas with unannotated fields do not build. Module authors cannot ship a module with unclassified fields.
+> **Startup and continuous integration enforcement**: payload schemas with unannotated fields fail a system check, so the application does not start and the build does not pass. Module authors cannot ship a module with unclassified fields.
 >
 > **Serialization-layer automatic encryption**: annotated PII fields are encrypted without command handler involvement. The only way to store a PII field value is through the annotated schema path.
 >
@@ -99,7 +99,7 @@ Encryption happens at the serialization layer, not in application code. When an 
 >
 > **Periodic audit scanning**: a scheduled tool scans event payloads for values matching known PII patterns (SSN format, date of birth, credit card numbers). Any match in a non-encrypted field triggers an alert.
 >
-> **UDT field default-to-encrypt**: UDT fields cannot be validated at compile time because their schema is defined at runtime. All UDT fields default to encrypted unless the agency explicitly marks them as non-PII during field definition. The schema builder UI requires a PII classification for every field and surfaces a prominent warning when the agency selects non-PII for a free-text field.
+> **UDT field default-to-encrypt**: UDT fields cannot be validated by that check because their schema is defined at runtime. All UDT fields default to encrypted unless the agency explicitly marks them as non-PII during field definition. The schema builder UI requires a PII classification for every field and surfaces a prominent warning when the agency selects non-PII for a free-text field.
 >
 > **Staged import scanning**: bulk data imports into UDTs pass through a staging area where a mandatory PII pattern scan runs before the data is committed. An import is blocked if potential PII is detected in fields marked as non-PII, and the agency is shown the findings before being asked to reclassify or abort.
 
@@ -183,7 +183,7 @@ The hash computation specification, including which fields are included and thei
 
 The Wax Security Module (WSM) computes event_hash and prior_event_hash within the same atomic transaction as the event write. Command handlers do not compute hash values directly. Invoking the WSM hash computation is a required step in the command handler write path; a write that bypasses it is a critical invariant violation. Hash values may not be computed after the fact.
 
-Every field in every event payload schema must carry an explicit PII classification. A payload schema with any unannotated field does not compile. This rule applies to Wax, to all module-contributed event types, and to all UDT-generated event types.
+Every field in every event payload schema must carry an explicit PII classification. A payload schema with any unannotated field fails the startup check. This rule applies to Wax, to all module-contributed event types, and to all UDT-generated event types.
 
 The break-glass process is a Wax capability and is not extensible by modules. Module authors may not implement alternative chain modification mechanisms.
 

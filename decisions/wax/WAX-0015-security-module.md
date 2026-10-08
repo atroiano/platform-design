@@ -2,9 +2,9 @@
 id: WAX-0015
 title: "Security Module"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -65,19 +65,19 @@ If an agency modifies application code in a way that attempts to write directly 
 
 ## Deployment and Distribution
 
-The WSM is distributed as a pre-compiled, code-signed binary for all supported platforms: Windows Server x64, Linux x64, and common cloud VM images. It is included in the standard HiveAR installer and is also available as a standalone download from the Collective's GitHub releases page and website. The WSM binary is versioned independently of the rest of the platform. When the Collective releases a new WSM version, it is distributed through the same channels and agencies update it independently of their application code deployments.
+The WSM is distributed as a pre-compiled, code-signed binary for all supported platforms: Windows Server x64, Linux x64, and common cloud VM images. It is included in the standard HiveAR release and is also available as a standalone download from the Collective's GitHub releases page and website. The WSM binary is versioned independently of the rest of the platform. When the Collective releases a new WSM version, it is distributed through the same channels and agencies update it independently of their application code deployments.
 
 Agencies running the standard HiveAR installer use the pre-compiled WSM binary directly. Agencies that have built custom versions of HiveAR's application code continue to use the Collective's pre-compiled WSM binary. The WSM is never expected to be recompiled by an agency. Its source is published for transparency and audit, and changes to it are accepted only through the Collective's contribution process. The code integrity architecture governing the WSM binary is documented in [Wax Design Decision 15](WAX-0015-security-module.md).
 
 ## Relationship to the Standard Installer and Custom Deployments
 
-The HiveAR will be distributed as a standard installer package containing all pre-compiled components including the WSM. This is the intended deployment path for the majority of agencies. The installer handles component version compatibility, initial configuration, and the WSM's key store initialization.
+HiveAR will be distributed as a standard release containing all components including the pre-compiled WSM. This is the intended deployment path for the majority of agencies. The release tooling handles component version compatibility, initial configuration, and the WSM's key store initialization.
 
 Agencies that choose to take advantage of HiveAR's open-source nature, for example to build custom modules, modify UI components, or extend the platform's capabilities, deploy their custom application code alongside the Collective's pre-compiled WSM binary. The WSM and the custom application code are independently deployable and independently versioned. The agency's custom code calls the WSM through the published interface in the same way that all Collective-authored code does. There is no distinction from the WSM's perspective between Collective code and agency-authored code on the other side of the interface.
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Not implemented as a separate component. Cryptographic operations (password hashing, token signing) are handled by standard .NET libraries within the application. No separate WSM binary, no reproducible build infrastructure, no code integrity verification.
+**Wax v1 (MVP):** Not implemented as a separate component. Cryptographic operations (password hashing, token signing) are handled by Django's password hashers and standard Python cryptography libraries within the application. No separate WSM binary, no reproducible build infrastructure, no code integrity verification.
 
 **Wax v2:** WSM extracted as a distinct component with a narrow interface. Pre-compiled binary distribution. Reproducible build specification.
 
@@ -125,7 +125,7 @@ A modified WSM binary will not carry the Collective's signature because the Coll
 
 ## Reproducible Builds
 
-The Collective will publish reproducible builds: given the Collective's published source code and build environment specification, the compiled output will be identical byte-for-byte to the Collective's published binary. The .NET build system supports reproducible builds through compiler flags that eliminate non-deterministic elements such as embedded timestamps and random module versioning identifiers. The Collective's build environment specification documents the exact compiler version, target framework, and build flags required to reproduce the published binary.
+The Collective will publish reproducible builds: given the Collective's published source code and build environment specification, the compiled output will be identical byte-for-byte to the Collective's published binary. The WSM's implementation language will be decided when the module is extracted in v2. Under the stack proposed in [Wax Design Decision 34](WAX-0034-primary-programming-language-and-application-framework.md) it would be the one component outside the primary language, because a Python package cannot be distributed as a single signed binary that attests to its own contents. Whatever language is chosen must support reproducible builds through a pinned compiler version, locked dependencies, and build flags that eliminate non-deterministic elements such as embedded timestamps and build paths. The Collective's build environment specification documents the exact compiler version, target platform, and build flags required to reproduce the published binary.
 
 Reproducible builds serve two purposes. First, they allow any party to verify independently that the Collective's published binary corresponds to the Collective's published source, confirming that the Collective has not distributed a binary containing code not present in the public source. Second, they establish the baseline for hash comparison: an agency that has correctly reproduced the build will obtain a binary hash identical to the Collective's published hash, confirming their build environment is correct before they run the WSM.
 
@@ -133,7 +133,7 @@ Reproducing the build correctly requires precisely matching the Collective's bui
 
 ## Runtime Self-Attestation
 
-At startup, the WSM computes a SHA-256 hash of its own loaded assembly and writes the result to the key audit log. This creates a permanent, tamper-evident record of which version of the WSM was running at any given point in time. The key audit log is itself hash-chained and checkpoint-anchored, so the self-attestation record cannot be silently altered after the fact.
+At startup, the WSM computes a SHA-256 hash of its own loaded binary image and writes the result to the key audit log. This creates a permanent, tamper-evident record of which version of the WSM was running at any given point in time. The key audit log is itself hash-chained and checkpoint-anchored, so the self-attestation record cannot be silently altered after the fact.
 
 If the running WSM binary has been modified from the Collective's published version, the self-attested hash will not match the Collective's published hash for the reported release version. Any party examining the key audit log can identify the discrepancy. An actor who modifies the WSM and also modifies the self-attestation code to report the correct original hash is making a second modification that changes the binary hash further, increasing the evidence of tampering rather than concealing it.
 

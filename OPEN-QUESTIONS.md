@@ -100,7 +100,7 @@ Version targets indicate when the item is expected to ship, not when the decisio
 
 ### Custom action type sandboxing
 
-**Technical:** Sandboxed execution environment for power-user-installed custom C# action types, limiting default permissions and requiring explicit privilege escalation. Extends [WAX-0023](decisions/wax/WAX-0023-workflow-automation-engine.md).
+**Technical:** Sandboxed execution environment for power-user-installed custom Python action types, limiting default permissions and requiring explicit privilege escalation. Extends [WAX-0023](decisions/wax/WAX-0023-workflow-automation-engine.md).
 **Target:** Wax v3+. Issue: #14.
 
 ### System-to-system configuration promotion UI

@@ -2,9 +2,9 @@
 id: WAX-0010
 title: "Module Registry"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -75,7 +75,7 @@ The module_type column on core.module is a technical classifier used by the plat
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Not implemented at runtime. Installed modules are known at compile time.
+**Wax v1 (MVP):** Not implemented at runtime. Installed modules are fixed in the application's settings.
 
 **Wax v2:** Full implementation. core.module_registry table, i18n module translations, module install and uninstall lifecycle.
 

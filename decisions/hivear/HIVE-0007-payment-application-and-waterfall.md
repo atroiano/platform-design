@@ -2,9 +2,9 @@
 id: HIVE-0007
 title: "Payment Application and Waterfall"
 status: Accepted
-version: 1.0
+version: 1.1
 area: hivear
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -27,13 +27,15 @@ Defaults come from modules and overrides from configuration, consistent with the
 
 ## Per-Payment Override at Posting
 
-The configured waterfall is the default path, not a constraint on the payment-taker. Whoever posts a payment, a cashier on the phone with the consumer, a file import, or an API caller, may override the waterfall by specifying explicit bucket amounts for that payment. There is no separate override permission, because the authority to take a payment is the authority to direct it: a payment-taker may at any moment be receiving the consumer's instructions about how to apply it, so the two cannot be separated. An override applies only to the payment that carries it and does not alter the account's configured waterfall.
+The configured waterfall is the default path, not a constraint on the payment-taker. Whoever posts a payment, a cashier on the phone with the consumer, a file import, or an API caller, may override the waterfall by specifying explicit bucket amounts for that payment. There is no separate override permission, because the authority to take a payment is the authority to direct it: a payment-taker may at any moment be receiving the consumer's instructions about how to apply it, so the two cannot be separated. An override applies only to the payment that carries it and does not alter the account's configured waterfall. On a disputed account an override is a direction of money to that account, so it is accepted only when the command states that the consumer directed it. The payment-taker's authority to direct a payment does not reach past the disputed-account floor below, and the platform asks the question of every caller, not only of the person at a screen. This reading of the floor is a proposal. It needs verification by someone with compliance standing before it is adopted.
 
 ## Multiple Debts and the Federal Floor
 
 When a debtor owes more than one account and makes a single payment, Federal law governs how it is allocated across those accounts. Under the Fair Debt Collection Practices Act, a collector may not apply any part of the payment to a disputed account, and must apply the payment in accordance with the consumer's directions. A dispute may be raised orally, and the exclusion still binds. HiveAR treats this as a non-negotiable floor: the consumer's allocation directions are honored above any default, and an account flagged as disputed is excluded from any allocation the consumer did not specifically direct.
 
 Above that floor, HiveAR offers configured cross-account allocation for the common case where the consumer gives no specific direction. Version 1 provides two options, an even split across the accounts in the set and oldest-first by list date, and later versions add more as agencies ask for them. The allocation across accounts runs first, and then each account's bucket waterfall runs on its share.
+
+Four edge cases are proposed here so that implementations agree. When a consumer directs more to an account than that account owes, the excess is not moved to another account, because the consumer did not direct it there; it becomes the consumer credit balance. When an even split would give an account more than it owes, that account is paid in full and the excess is split again across the remaining eligible accounts, repeating until the money or the eligible balances are exhausted. When a split does not divide evenly, the odd minor units go to the accounts with the earliest list dates. When a payment carries explicit bucket amounts for an account that total less than the payment, that account receives exactly those amounts, the remainder is shared across the payment's other accounts under the configured allocation, and whatever is left becomes the consumer credit balance.
 
 ## Payment Arrangements Carry a Persisted Application Directive
 
@@ -49,7 +51,7 @@ This decision covers the distribution of payments and credits across accounts an
 
 ## Implementation Phasing
 
-**HiveAR v1 (MVP):** The configurable bucket waterfall with module-supplied defaults and contract-over-client-over-agency overrides. The per-payment bucket-amount override available to any payment-taker, whether cashier, file import, or API. The Federal multiple-debt floor of consumer-directed allocation and disputed-account exclusion. Two cross-account allocation options, even split across the set and oldest-first by list date. Application of held credit balances through the same waterfall. The persisted application directive that an arrangement payment carries. Reversals that unwind the original distribution.
+**HiveAR v1 (MVP):** The configurable bucket waterfall with module-supplied defaults and contract-over-client-over-agency overrides. The per-payment bucket-amount override available to any payment-taker, whether cashier, file import, or API, subject on a disputed account to the consumer's direction. The Federal multiple-debt floor of consumer-directed allocation and disputed-account exclusion. Two cross-account allocation options, even split across the set and oldest-first by list date. Application of held credit balances through the same waterfall. The persisted application directive that an arrangement payment carries. Reversals that unwind the original distribution.
 
 **HiveAR v2:** Pro-rata distribution across equal-priority buckets within a waterfall tier, with its rounding rule. Additional cross-account allocation options as agencies request them.
 
@@ -63,6 +65,6 @@ Application distributes; the ledger posts. This decision produces per-bucket pay
 
 The Federal multiple-debt floor is absolute. Consumer allocation directions are honored above any default, and a disputed account is never paid from a payment the consumer did not direct to it. This rule may not be overridden by configuration.
 
-A payment-taker may always direct a payment. The right to post a payment includes the right to override the waterfall with explicit bucket amounts, and no separate permission gates it.
+A payment-taker may direct a payment. The right to post a payment includes the right to override the waterfall with explicit bucket amounts, and no separate permission gates it, except that on a disputed account explicit bucket amounts are accepted only with the consumer's direction.
 
 Reversals unwind the recorded distribution, never a recomputed one. A reversal backs out the exact allocation and per-bucket amounts the original application produced, read from the event stream.

@@ -2,9 +2,9 @@
 id: WAX-0006
 title: "Deployment Model"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -29,7 +29,7 @@ Ubuntu LTS (20.04 and later) and other major Linux distributions
 
 AWS EC2, Azure Virtual Machines, GCP Compute Engine (via standard Linux deployment)
 
-Containerized deployment via Docker and Docker Compose (Wax v2 goal)
+Containerized deployment via Docker and Docker Compose, the v1 reference path
 
 ## Out Of Scope
 
@@ -37,9 +37,9 @@ The Collective will not provide hosted instances, managed updates, or operationa
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Support Linux deployment (Ubuntu LTS) as the primary target. Docker Compose reference file for single-node deployment. Basic installation documentation. Windows Server support is a v2 goal; .NET runs on both, but testing and documentation can wait. No HA/DR reference architecture; single-node PostgreSQL is appropriate for pilot agencies. The reference deployment artifacts and their phasing across versions are specified in [Shared Design Decision 8](../shared/SHARED-0008-reference-deployment-architecture.md).
+**Wax v1 (MVP):** Support Linux deployment (Ubuntu LTS) as the primary target. Docker Compose reference file for single-node deployment. Basic installation documentation. Windows Server support is a v2 goal; Python and Django run on both, with a different application server on Windows, but testing and documentation can wait. No HA/DR reference architecture; single-node PostgreSQL is appropriate for pilot agencies. The reference deployment artifacts and their phasing across versions are specified in [Shared Design Decision 8](../shared/SHARED-0008-reference-deployment-architecture.md).
 
-**Wax v2:** Windows Server deployment documentation and testing. Docker Compose HA reference (primary + replica). Upgrade and migration tooling.
+**Wax v2:** Windows Server deployment documentation and testing. Docker Compose HA reference (primary + replica). Upgrade tooling beyond the blue-green release procedure, which ships in v1 under [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md).
 
 **Wax v3+:** Kubernetes Helm chart. Managed deployment guidance for certified vendors.
 

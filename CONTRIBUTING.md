@@ -65,7 +65,7 @@ If you contributed through the web editor and forgot the sign-off, the Foundatio
 ## Licensing
 
 - **Prose in this repository** is contributed and published under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/) (CC BY 4.0). By contributing, you agree your contribution is licensed the same way.
-- **Code samples embedded in the prose** (interface sketches, SQL, schema fragments, C# snippets) are additionally available under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), matching the license the Wax and HiveAR codebases will carry, so that text can move between documentation and implementation without friction.
+- **Code samples embedded in the prose** (interface sketches, SQL, schema fragments, Python snippets) are additionally available under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), matching the license the Wax and HiveAR codebases will carry, so that text can move between documentation and implementation without friction.
 - Nothing in either license grants rights to the Foundation's names, logos, or other trademarks.
 
 ## AI-assisted contributions

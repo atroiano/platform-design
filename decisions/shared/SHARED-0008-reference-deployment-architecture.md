@@ -2,9 +2,9 @@
 id: SHARED-0008
 title: "Reference Deployment Architecture"
 status: Accepted
-version: 1.0
+version: 1.1
 area: shared
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -27,11 +27,11 @@ The reference architectures are starting points, not turnkey production systems.
 
 ## Reference Topology
 
-The reference deployment expresses the component architecture as a set of composed services: the HiveAR application tier, the workflow service that processes asynchronous jobs, a PostgreSQL database tier, a pgBouncer connection pooler in front of the database, and a reverse proxy for TLS termination and request routing. At the high-availability tier, the database expands to a primary with one or more streaming replicas, with optional Patroni and a distributed consensus store providing automatic failover. The application and workflow tiers are stateless and horizontally scalable, consistent with [Wax Design Decision 24](../wax/WAX-0024-high-availability-disaster-recovery-and-distributed-workloads.md).
+The reference deployment expresses the component architecture as a set of composed services: the HiveAR application tier, the workflow service that processes asynchronous jobs, a PostgreSQL database tier, a pgBouncer connection pooler in front of the database, and a reverse proxy for TLS termination and request routing. The application and workflow tiers run as a blue-green pair: two stacks, each on one release, with the proxy sending user traffic to one and exposing the other on a preview port, as [Shared Design Decision 10](SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md) specifies. At the high-availability tier, the database expands to a primary with one or more streaming replicas, with optional Patroni and a distributed consensus store providing automatic failover. The application and workflow tiers are stateless and horizontally scalable, consistent with [Wax Design Decision 24](../wax/WAX-0024-high-availability-disaster-recovery-and-distributed-workloads.md).
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** A single reference Compose file for the simplest working deployment: the HiveAR application, a single-node PostgreSQL database, pgBouncer, and a reverse proxy for TLS. Each service carries inline comments, with pointers to upstream PostgreSQL and pgBouncer documentation. The goal is evaluation and first run. This tier deliberately omits replication and automatic failover; a single-node database is appropriate for pilot agencies, consistent with the v1 deployment scope in [Wax Design Decision 6](../wax/WAX-0006-deployment-model.md).
+**Wax v1 (MVP):** A single reference Compose file for the simplest working deployment: the HiveAR application, a single-node PostgreSQL database, pgBouncer, and a reverse proxy for TLS. Each service carries inline comments, with pointers to upstream PostgreSQL and pgBouncer documentation. The file runs the application as a blue-green pair and ships with the release script that deploys, cuts over, rolls back, and finalizes. The goal is evaluation and first run. This tier deliberately omits replication and automatic failover; a single-node database is appropriate for pilot agencies, consistent with the v1 deployment scope in [Wax Design Decision 6](../wax/WAX-0006-deployment-model.md).
 
 **Wax v2 and HiveAR v2:** A high-availability and disaster recovery reference configuration: a PostgreSQL primary with a streaming replica, pgBouncer, and optional Patroni with a distributed consensus store for automatic failover. Each reference ships with a written guide explaining every service, the rationale for its presence, and the specific changes an operator should make before production use. Reference Patroni configuration is provided alongside pointers to upstream Patroni, pgBouncer, and PostgreSQL streaming replication documentation.
 

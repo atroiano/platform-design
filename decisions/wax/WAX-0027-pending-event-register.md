@@ -2,9 +2,9 @@
 id: WAX-0027
 title: "Pending Event Register"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -47,8 +47,12 @@ The classification-group form is the one that future-proofs cancellation. Becaus
 
 Scheduled event types carry classification tags in the trigger registry defined in [Wax Design Decision 23](WAX-0023-workflow-automation-engine.md). The tags are multi-membership, so a payment reminder letter can be tagged with both its function and its channel, and cancellation can target either dimension. The same registry serves both scheduling and cancellation: a single event type definition makes a type both schedulable as a future event and targetable by a cancellation, with no separate vocabulary of cancellable types to maintain alongside the firing ones. One registration grants both capabilities.
 
+## Releases and the Register
+
+The Register holds claim and fired status, so it is not a versioned projection in the sense of [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md). Two releases share one Register table, changed only under the migration compatibility rule, and it is never rebuilt per release: rebuilding it from scheduling and cancellation events alone would present every past entry as pending again. Before any change that needs the Register rebuilt, firing must itself be recorded as an event that carries the entry's key.
+
 ## Implementation Phasing
 
 **Wax v2:** The Pending Event Register, the schedule future event action that writes to it, the four cancellation breadths, the implicit no-op behavior, and the classification tagging. Scheduling depends on the event-triggered workflow engine, which matures past the Wax v1 linear rule engine described in [Wax Design Decision 23](WAX-0023-workflow-automation-engine.md), so the Register is a v2 capability.
 
-**Breaking change risk: LOW. The Register is an operational projection rebuildable from the scheduling and cancellation events in core.event, so its schema can evolve without data loss. Additional cancellation breadths and classification dimensions are additive.**
+**Breaking change risk: LOW. The Register's schema evolves under the migration compatibility rule, as the section above describes. It cannot be rebuilt from scheduling and cancellation events alone until firing is itself recorded as an event. Additional cancellation breadths and classification dimensions are additive.**

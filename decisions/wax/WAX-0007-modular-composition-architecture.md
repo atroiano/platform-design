@@ -2,9 +2,9 @@
 id: WAX-0007
 title: "Modular Composition Architecture"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -62,7 +62,7 @@ Modules within a tier may declare compatibility constraints. A Business Class mo
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Hardcoded composition. The platform ships as a single deployable application, not as Wax + pluggable modules. The US Locale Module, a basic third-party collections Business Class, and a generic debt-type configuration are baked into the v1 codebase. Code is organized along module boundaries internally (separate projects and namespaces for what will become modules), but there is no runtime module discovery, installation, or swapping. The critical discipline: v1 code must not cross module boundaries in ways the module contract would prohibit.
+**Wax v1 (MVP):** Hardcoded composition. The platform ships as a single deployable application, not as Wax + pluggable modules. The US Locale Module, a basic third-party collections Business Class, and a generic debt-type configuration are baked into the v1 codebase. Code is organized along module boundaries internally (separate Django apps for what will become modules), but there is no runtime module discovery, installation, or swapping. The critical discipline: v1 code must not cross module boundaries in ways the module contract would prohibit.
 
 **Wax v2:** Module contract standard fully implemented. Module registry and installation pipeline. At least two to three alternative modules available.
 

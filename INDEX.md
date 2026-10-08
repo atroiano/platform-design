@@ -8,11 +8,13 @@ An AI assistant helping with this repository should read this index first, then 
 - **[SHARED-0001](decisions/shared/SHARED-0001-repository-architecture-and-layer-separation-wax-and-hivear.md)** Repository Architecture and Layer Separation (Wax and HiveAR). The platform is developed as two distinct codebases housed in separate repositories, each with independent version cadences.
 - **[SHARED-0002](decisions/shared/SHARED-0002-decoupled-frontend-and-backend.md)** Decoupled Frontend and Backend. The HiveAR will be built with a strict separation between the backend and the frontend.
 - **[SHARED-0003](decisions/shared/SHARED-0003-api-surface.md)** API Surface. The HiveAR will expose a REST API as its published interface between the backend and all frontends.
-- **[SHARED-0004](decisions/shared/SHARED-0004-frontend-framework.md)** Frontend Framework. The HiveAR reference frontend will be built using Blazor WebAssembly.
+- **[SHARED-0004](decisions/shared/SHARED-0004-frontend-framework.md)** Frontend Framework. The HiveAR reference frontend will be built using Blazor WebAssembly. Superseded by SHARED-0009.
 - **[SHARED-0005](decisions/shared/SHARED-0005-frontend-internationalization.md)** Frontend Internationalization. The HiveAR frontend will implement internationalization at two distinct layers: the data layer, where all user-visible reference values and domain labels are resolved by the backend and delivered locale-aware through the API, and the UI chrome layer, where button labels, field labels, navigation items, error messages, and all other interface strings are sourced from locale-specific resource bundles.
 - **[SHARED-0006](decisions/shared/SHARED-0006-file-interface-engine.md)** File Interface Engine. Wax will include a file interface engine that supports bidirectional data exchange between the platform and external systems.
 - **[SHARED-0007](decisions/shared/SHARED-0007-devops-and-contribution-lifecycle.md)** DevOps and Contribution Lifecycle. The Foundation operates a unified DevOps and contribution lifecycle across the Wax framework, the HiveAR platform, and all module repositories under Foundation control.
 - **[SHARED-0008](decisions/shared/SHARED-0008-reference-deployment-architecture.md)** Reference Deployment Architecture. The Foundation provides Docker Compose reference architectures for deploying HiveAR and other applications built on Wax, for use by agencies hosting the platform themselves or by vendors hosting it on their behalf.
+- **[SHARED-0009](decisions/shared/SHARED-0009-reference-frontend-framework.md)** Reference Frontend Framework. Proposed. The HiveAR reference frontend will be a single-page application built with React and TypeScript.
+- **[SHARED-0010](decisions/shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md)** Release Rollout, Blue-Green Cutover, and Migration Compatibility. Proposed. Every release will be deployable beside the release it replaces, and every migration must be safe to apply while the previous release's code is still running.
 
 ## Wax Framework Decisions
 
@@ -24,7 +26,7 @@ An AI assistant helping with this repository should read this index first, then 
 - **[WAX-0006](decisions/wax/WAX-0006-deployment-model.md)** Deployment Model. HiveAR will be designed for agency-controlled deployment: installed on the agency's own infrastructure, or hosted by a vendor of the agency's choosing.
 - **[WAX-0007](decisions/wax/WAX-0007-modular-composition-architecture.md)** Modular Composition Architecture. The Wax will be built as a modular composition system.
 - **[WAX-0008](decisions/wax/WAX-0008-extensibility-construct-nomenclature.md)** Extensibility Construct Nomenclature. Wax's extensibility system uses two top-level constructs distinguished by a single principle: Modules contain code; Packs contain data.
-- **[WAX-0009](decisions/wax/WAX-0009-module-contract-standard.md)** Module Contract Standard. The Wax module contract standard will use a hybrid model: a manifest file for discovery, metadata, and dependency declarations, combined with a C# interface for runtime behavioral contracts.
+- **[WAX-0009](decisions/wax/WAX-0009-module-contract-standard.md)** Module Contract Standard. The Wax module contract standard will use a hybrid model: a manifest file for discovery, metadata, and dependency declarations, combined with a Python interface for runtime behavioral contracts.
 - **[WAX-0010](decisions/wax/WAX-0010-module-registry.md)** Module Registry. The Wax will maintain a module registry in the core schema.
 - **[WAX-0011](decisions/wax/WAX-0011-internationalization-architecture-and-reference-value-system.md)** Internationalization Architecture and Reference Value System. The Wax will store all reference values, status codes, reason codes, and lookup values as language-neutral UUID surrogate keys.
 - **[WAX-0012](decisions/wax/WAX-0012-date-time-timezone-and-freeform-note-language.md)** Date, Time, Timezone, and Freeform Note Language. All date and time values will be stored in UTC.
@@ -40,7 +42,7 @@ An AI assistant helping with this repository should read this index first, then 
 - **[WAX-0022](decisions/wax/WAX-0022-user-defined-tables-and-user-defined-windows.md)** User-Defined Tables and User-Defined Windows. Wax will support two distinct user-extensibility constructs.
 - **[WAX-0023](decisions/wax/WAX-0023-workflow-automation-engine.md)** Workflow Automation Engine. Wax will include a user-configurable workflow automation engine.
 - **[WAX-0024](decisions/wax/WAX-0024-high-availability-disaster-recovery-and-distributed-workloads.md)** High Availability, Disaster Recovery, and Distributed Workloads. Wax's application tier is stateless, enabling horizontal scaling and instance-level failover without coordination.
-- **[WAX-0025](decisions/wax/WAX-0025-primary-programming-language.md)** Primary Programming Language. The Wax will be built in C# on the .NET runtime.
+- **[WAX-0025](decisions/wax/WAX-0025-primary-programming-language.md)** Primary Programming Language. The Wax will be built in C# on the .NET runtime. Superseded by WAX-0034.
 - **[WAX-0026](decisions/wax/WAX-0026-event-schema-versioning.md)** Event Schema Versioning. Wax will evolve event payload schemas through read-time upcasting, never through in-place migration of stored events.
 - **[WAX-0027](decisions/wax/WAX-0027-pending-event-register.md)** Pending Event Register. Wax will provide a Pending Event Register: an operational store of individual future-dated domain events scheduled against specific aggregates.
 - **[WAX-0028](decisions/wax/WAX-0028-job-scheduler.md)** Job Scheduler. Wax will provide a Job Scheduler: a store of system-level jobs scheduled to run at a future time, either once or on a recurring cadence.
@@ -49,6 +51,7 @@ An AI assistant helping with this repository should read this index first, then 
 - **[WAX-0031](decisions/wax/WAX-0031-ai-agent-infrastructure.md)** AI Agent Infrastructure. Wax will provide infrastructure for AI agents to operate against the platform.
 - **[WAX-0032](decisions/wax/WAX-0032-reporting-and-business-intelligence.md)** Reporting and Business Intelligence. Wax will not build a reporting or business intelligence engine.
 - **[WAX-0033](decisions/wax/WAX-0033-module-composition-model.md)** Module Composition Model. Wax modules will compose from a shared pool of primitive definitions rather than redefining the primitives they have in common.
+- **[WAX-0034](decisions/wax/WAX-0034-primary-programming-language-and-application-framework.md)** Primary Programming Language and Application Framework. Proposed. Wax will be built in Python on the Django framework.
 
 ## HiveAR Domain Decisions
 

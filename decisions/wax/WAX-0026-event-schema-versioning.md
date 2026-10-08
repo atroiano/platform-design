@@ -2,9 +2,9 @@
 id: WAX-0026
 title: "Event Schema Versioning"
 status: Accepted
-version: 1.0
+version: 2.0
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -13,7 +13,7 @@ license: CC-BY-4.0
 
 ## Decision
 
-Wax will evolve event payload schemas through read-time upcasting, never through in-place migration of stored events. A stored event is byte-immutable for its entire lifetime. Each event type carries an explicit schema_version on its core.event row, scoped to that event type, and that version is included in the [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md) hash input. Only breaking changes increment the version; additive changes do not. Marten provides the upcasting implementation. The pair of event_type and schema_version fully determines how a stored payload is interpreted.
+Wax will evolve event payload schemas through read-time upcasting, never through in-place migration of stored events. A stored event is byte-immutable for its entire lifetime. Each event type carries an explicit schema_version on its core.event row, scoped to that event type, and that version is included in the [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md) hash input. Only breaking changes increment the version; additive changes do not. Wax provides the upcasting implementation as a registry of functions in the event store layer. The pair of event_type and schema_version fully determines how a stored payload is interpreted.
 
 ## Why This Matters
 
@@ -41,6 +41,12 @@ Upcasters are structural transformations only and never touch the contents of an
 
 The upcaster registry is the single place in the platform where historical schema knowledge lives. Projection code, read model builders, and command handlers are written against the current shape of each event type only. When the event store is replayed to rebuild an authoritative state table or a read model, every historical event passes through the registry and arrives at the consumer in its current shape. This keeps the rest of the codebase free of accumulated backward-compatibility branches: the knowledge of how a v1 payload differs from a v3 payload exists in exactly one upcaster chain and nowhere else.
 
+## Reading Before Writing
+
+An agency upgrades by running the new release beside the old one against the same database, as [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md) specifies, and may roll back. During that period the previous release is still reading the event stream, and it has no upcaster for a schema version that did not exist when it shipped. A release may therefore begin writing a new schema version of an event type only if the previous release can already read that version. The upcaster and the handlers written against the new shape ship first. The code that writes the new version ships in a later release.
+
+A new event type on an aggregate type that the previous release already projects or handles is staged the same way. If the previous release passed over an event that changed a balance or a status, its read models would be wrong after a rollback with no sign of trouble, so the release that first writes the type follows a release that handles it. A split of one event type into several, which this decision already classes as a breaking change, is therefore staged too. Only an event type on a new aggregate type needs no staging, because no existing code reads it.
+
 ## Schema Changelog
 
 Each event type's schema history is recorded in a schema changelog held as project documentation: a dated list of revisions per event type, each with a description of what changed and whether it was additive or breaking. The changelog is the human-readable narrative of how the event vocabulary evolved, and it supports forensic correlation of any stored event against the schema generation in effect when it was written. The changelog is documentation rather than a per-row stamp, which keeps the additive path frictionless while still preserving the evolution record.
@@ -49,7 +55,7 @@ Each event type's schema history is recorded in a schema changelog held as proje
 
 **Wax v1 (MVP):** The schema_version column is present on core.event and is included in the documented hash input specification, even though hash computation itself is deferred to v2. All events are written at version 1. The upcasting mechanism is not yet active because no event type has evolved. This tier exists to lock the schema_version marker into the hash input before the specification freezes.
 
-**Wax v2:** Upcasting activates alongside hash computation. Marten upcaster registration is wired into the event store abstraction layer, the schema changelog discipline begins, and the first breaking change to any event type is handled by a registered upcaster and a version increment. A backfill is unnecessary, since stored v1 events are read through the upcaster rather than rewritten.
+**Wax v2:** Upcasting activates alongside hash computation. An upcaster registry, a table of functions keyed by event type and schema version, is wired into the event store abstraction layer, the schema changelog discipline begins, and the first breaking change to any event type is handled by a registered upcaster and a version increment. A backfill is unnecessary, since stored v1 events are read through the upcaster rather than rewritten.
 
 **Wax v3+:** Optional tooling: a schema-version audit report that surfaces the distribution of versions across the event store, and validation utilities that confirm every non-current version has a registered upcaster chain reaching the current shape.
 
@@ -64,5 +70,7 @@ A breaking change to an event type, meaning a rename, a type change, a change of
 Stored events are never rewritten. No migration, backfill, or maintenance process may alter the payload, event_type, or schema_version of an event already written to core.event. Evolution is always read-time upcasting.
 
 Upcasters are structural only. An upcaster may not decrypt, re-encrypt, or otherwise inspect the contents of an encryption envelope; it moves envelopes as opaque values.
+
+A breaking change ships in two releases: first the release that can read the new version, then the release that writes it. A pull request that does both at once will not be accepted.
 
 Every breaking change is recorded in the schema changelog for the affected event type. The changelog entry is part of the contribution, not an afterthought.
