@@ -2,9 +2,9 @@
 id: WAX-0008
 title: "Extensibility Construct Nomenclature"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -17,9 +17,9 @@ Wax's extensibility system uses two top-level constructs distinguished by a sing
 
 ## The Fundamental Distinction
 
-A Module contributes code: command handlers, event subscriptions, API endpoints, UI components, schema namespaces, validation logic, and action types. It implements the full module contract: a manifest file and a C# interface. It has a build process, a versioned binary, and a schema namespace it owns. It is subject to the module registry, the installation and uninstall lifecycle, and Collective certification review.
+A Module contributes code: command handlers, event subscriptions, API endpoints, UI components, schema namespaces, validation logic, and action types. It implements the full module contract: a manifest file and a Python interface. It has a build process, a versioned package, and a schema namespace it owns. It is subject to the module registry, the installation and uninstall lifecycle, and Collective certification review.
 
-A Pack contributes data: reference values, translations, workflow definitions, letter templates, reason code sets, compliance reference configurations, and other structured starting-point content. It has no compiled code. It installs through the seeding framework established in [Wax Design Decision 11](WAX-0011-internationalization-architecture-and-reference-value-system.md). It is reversible through the same installed_by_module_fk mechanism used for all contributed reference values. Its contents are labeled as educational reference material and never as compliance guarantees.
+A Pack contributes data: reference values, translations, workflow definitions, letter templates, reason code sets, compliance reference configurations, and other structured starting-point content. It has no executable code. It installs through the seeding framework established in [Wax Design Decision 11](WAX-0011-internationalization-architecture-and-reference-value-system.md). It is reversible through the same installed_by_module_fk mechanism used for all contributed reference values. Its contents are labeled as educational reference material and never as compliance guarantees.
 
 This distinction is intentional and must not be blurred. A construct that adds a new database table is a Module, because schema is code. A construct that populates an existing table with seed data is a Pack. If a capability requires both, it is a Bundle containing a Module and a Pack.
 
@@ -41,7 +41,7 @@ All Module subtypes implement the full module contract. The subtype classificati
 
 ## Pack Subtypes
 
-All Pack subtypes install through the seeding framework. They contribute no compiled code. The following subtypes are defined.
+All Pack subtypes install through the seeding framework. They contribute no executable code. The following subtypes are defined.
 
 > **PACK SUBTYPES**
 >

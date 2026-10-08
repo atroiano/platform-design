@@ -1,7 +1,7 @@
 ---
 id: WAX-0025
 title: "Primary Programming Language"
-status: Accepted
+status: Superseded
 version: 1.0
 area: wax
 date: 2026-08-30
@@ -10,6 +10,8 @@ license: CC-BY-4.0
 ---
 
 # Wax Design Decision 25: Primary Programming Language
+
+> **Superseded in this proposal.** [Wax Design Decision 34](WAX-0034-primary-programming-language-and-application-framework.md) would supersede this decision. Until the Foundation adopts that proposal, this file remains its commitment. It is retained afterward as the record of that commitment.
 
 ## Decision
 

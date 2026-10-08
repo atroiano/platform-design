@@ -2,9 +2,9 @@
 id: WAX-0009
 title: "Module Contract Standard"
 status: Accepted
-version: 1.0
+version: 2.0
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -13,7 +13,7 @@ license: CC-BY-4.0
 
 ## Decision
 
-The Wax module contract standard will use a hybrid model: a manifest file for discovery, metadata, and dependency declarations, combined with a C# interface for runtime behavioral contracts. Each component serves a different purpose and the two are complementary. Together they define a complete, enforceable, and well-documented standard that any module author can implement.
+The Wax module contract standard will use a hybrid model: a manifest file for discovery, metadata, and dependency declarations, combined with a Python interface for runtime behavioral contracts. Each component serves a different purpose and the two are complementary. Together they define a complete, enforceable, and well-documented standard that any module author can implement.
 
 ## The Manifest File
 
@@ -31,7 +31,7 @@ The manifest is the right place for information that must be readable outside th
 >
 > **Dependency declarations**: other modules this module requires, with minimum version constraints.
 >
-> **Compatibility constraints**: module tiers or specific modules this module is incompatible with.
+> **Compatibility constraints**: module tiers or specific modules this module is incompatible with, the range of Wax and HiveAR releases it supports, and each event type it reads from another component with the highest schema version it handles.
 >
 > **i18n compliance**: the locales for which translations are provided.
 >
@@ -39,13 +39,13 @@ The manifest is the right place for information that must be readable outside th
 >
 > **Legal info:** License and attribution information.
 
-## The C# Interface
+## The Python Interface
 
-In addition to the manifest, every module must implement a defined C# interface. This is the runtime contract. Where the manifest declares what a module is and what it contains, the C# interface is what Wax calls at runtime to register the module's behavior, load its command handlers, subscribe its projections to the event stream, and wire its API endpoints into the routing layer.
+In addition to the manifest, every module must implement a defined Python interface, a typed protocol published by Wax. This is the runtime contract. A module is a Django app distributed as its own Python package, and the package advertises its implementation of the interface through a Python entry point, which is how Wax discovers installed modules. Where the manifest declares what a module is and what it contains, the interface is what Wax calls at runtime to register the module's behavior, load its command handlers, subscribe its projections to the event stream, and wire its API endpoints into the routing layer.
 
-The C# interface enforces the contract at compile time. A module that declares a command handler in its manifest but does not implement the corresponding interface method will not compile. This means the manifest and the interface stay in sync by construction rather than by convention.
+Python has no compile step to enforce the contract, so enforcement is layered. Static type checking in continuous integration verifies that the module implements every interface method with the correct signature. A conformance check, registered with Django's system check framework, compares the manifest against what the module actually registers. A module that declares a command handler in its manifest but does not register one fails the check, and the application does not start. The manifest and the interface stay in sync because the platform refuses to run when they disagree.
 
-> **C# INTERFACE COVERS**
+> **PYTHON INTERFACE COVERS**
 >
 > **Module registration**: the entry point Core calls to load the module into the composition system.
 >
@@ -55,21 +55,21 @@ The C# interface enforces the contract at compile time. A module that declares a
 >
 > **API endpoint registration**: the REST endpoints the module exposes, wired into the application's routing layer.
 >
-> **Migration execution**: the method Core calls to run the module's schema migrations during installation.
+> **Migration execution**: the method Core calls to run the module's schema migrations during installation. These are the Django migrations of the module's app.
 >
 > **Uninstall execution**: the method Core calls to reverse the module's contributions during uninstall, in dependency order.
 
 ## Why Hybrid Rather Than Either Alone
 
-A manifest alone would be sufficient for discovery and tooling but would leave behavioral registration entirely to convention. Modules could declare capabilities they do not implement, and Wax would have no compile-time guarantee that a declared command handler actually exists. Discoverability would be good but enforcement would be weak.
+A manifest alone would be sufficient for discovery and tooling but would leave behavioral registration entirely to convention. Modules could declare capabilities they do not implement, and Wax would have no guarantee that a declared command handler actually exists. Discoverability would be good but enforcement would be weak.
 
-A C# interface alone would provide strong compile-time enforcement but would give tooling, certification reviewers, and administrators no human-readable window into a module's capabilities without running the code. The certification program in particular requires the ability to review a module's declared scope against a readable artifact, and the module directory requires structured metadata that can be queried without executing application code.
+A Python interface alone would provide enforcement but would give tooling, certification reviewers, and administrators no human-readable window into a module's capabilities without running the code. The certification program in particular requires the ability to review a module's declared scope against a readable artifact, and the module directory requires structured metadata that can be queried without executing application code.
 
-The hybrid model gives each component the job it is suited for. The manifest handles declaration, discovery, and review. The interface handles enforcement and runtime wiring. A module that conforms to both is correct by construction and reviewable by anyone.
+The hybrid model gives each component the job it is suited for. The manifest handles declaration, discovery, and review. The interface handles enforcement and runtime wiring. A module that conforms to both is checked each time the platform starts and is reviewable by anyone.
 
 ## Relationship to Vendor Certification
 
-The module contract standard is the technical foundation for the Platform Integration certification track. A certified module is one that has been reviewed against the published module contract specification, verified to implement the C# interface correctly, confirmed to follow naming conventions and schema ownership rules, and assessed for quality and security standards beyond bare technical compliance.
+The module contract standard is the technical foundation for the Platform Integration certification track. A certified module is one that has been reviewed against the published module contract specification, verified to implement the Python interface correctly, confirmed to follow naming conventions and schema ownership rules, and assessed for quality and security standards beyond bare technical compliance.
 
 The contract standard is not the certification program. Any module that conforms to the technical standard is installable by any agency. Certification governs the Collective's own directory listing and endorsement. This distinction is deliberate and fundamental to the open-source model.
 
@@ -79,9 +79,9 @@ The detailed specification of the manifest schema, method signatures, validation
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Internal convention only. No formal manifest file or C# interface validation at runtime. The v1 codebase follows module contract patterns informally: separate namespaces, no cross-boundary direct table access, extension points defined but not enforced.
+**Wax v1 (MVP):** Internal convention only. No formal manifest file or interface validation at runtime. The v1 codebase follows module contract patterns informally: separate Django apps, no cross-boundary direct table access, extension points defined but not enforced.
 
-**Wax v2:** Full implementation. Manifest file schema published. C# interface defined and enforced. Module validation tooling.
+**Wax v2:** Full implementation. Manifest file schema published. Python interface defined and enforced through static checking and startup checks. Module validation tooling.
 
 **Breaking change risk: LOW.** The contract is an interface definition. v1 code that respects the intended boundaries will conform when the interface is formalized.
 
@@ -89,7 +89,9 @@ The detailed specification of the manifest schema, method signatures, validation
 
 No module will be accepted into the Collective's repository until the full module contract specification has been published and the module demonstrably conforms to it.
 
-The manifest and the C# interface are both required. A module that implements one without the other does not meet the contract standard.
+The manifest and the Python interface are both required. A module that implements one without the other does not meet the contract standard.
+
+A module's migrations are held to the compatibility rule in [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md) against the module's own previous release, and its manifest declares the range of Wax and HiveAR releases it supports and the event versions it reads from other components.
 
 The manifest must be kept current with the implementation. A manifest that declares capabilities the module does not implement, or omits capabilities it does implement, is a contract violation.
 

@@ -2,9 +2,9 @@
 id: WAX-0031
 title: "AI Agent Infrastructure"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -25,7 +25,7 @@ An agent is invoked in one of two modes. In delegated mode, an agent acts on beh
 
 ## The Model Context Protocol Server
 
-Wax exposes a Model Context Protocol server using the official C# SDK, which has reached a stable release developed in collaboration with Microsoft. The server is a thin adapter, not a parallel capability system. MCP tools map onto existing commands and the pluggable action types from [Wax Design Decision 23](WAX-0023-workflow-automation-engine.md), which already declare typed input and output schemas, and onto the published API catalog from [Wax Design Decision 18](WAX-0018-access-control.md). MCP resources map onto row-level-security-filtered queries and views. A tool call executes as the agent's principal through the ordinary command path, so it inherits access control, row-level security, hash-chained audit, and pre-event guardrails without any AI-specific enforcement. This decision covers the platform acting as an MCP server, the inward direction. The platform acting as an MCP client, calling out to AI through workflow action types, is addressed with the HiveAR implementation and the generative-content decision.
+Wax exposes a Model Context Protocol server using the official Python SDK for the protocol. The server is a thin adapter, not a parallel capability system. MCP tools map onto existing commands and the pluggable action types from [Wax Design Decision 23](WAX-0023-workflow-automation-engine.md), which already declare typed input and output schemas, and onto the published API catalog from [Wax Design Decision 18](WAX-0018-access-control.md). MCP resources map onto row-level-security-filtered queries and views. A tool call executes as the agent's principal through the ordinary command path, so it inherits access control, row-level security, hash-chained audit, and pre-event guardrails without any AI-specific enforcement. This decision covers the platform acting as an MCP server, the inward direction. The platform acting as an MCP client, calling out to AI through workflow action types, is addressed with the HiveAR implementation and the generative-content decision.
 
 ## Security Posture and the Untrusted-Input Rule
 

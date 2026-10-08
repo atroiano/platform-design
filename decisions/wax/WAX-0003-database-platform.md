@@ -2,9 +2,9 @@
 id: WAX-0003
 title: "Database Platform"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -33,7 +33,7 @@ The accounts receivable domain has a well-understood, legally defined data model
 
 **Row-level security and SECURITY DEFINER functions**: PostgreSQL's native row-level security (RLS) policies enforce data access boundaries at the database layer rather than relying solely on application code. Combined with SECURITY DEFINER view and function definitions, this allows Wax to present decrypted PII to authorized roles transparently, enforce multi-tenant data isolation, and expose a safe read surface to BI tools and direct SQL users, all without bespoke application middleware. [Wax Design Decision 16](WAX-0016-data-access-architecture-read-layer-and-direct-query-interface.md) describes the read layer architecture built on these capabilities.
 
-**Marten as the event store abstraction implementation**: Marten is a .NET library that implements a document store and event store directly on PostgreSQL. HiveAR's event store abstraction interface ([Wax Design Decision 1](WAX-0001-enriched-event-sourcing.md)) uses Marten as its backing implementation. Marten handles stream management, optimistic concurrency via expectedVersion, and projection registration against the PostgreSQL event table. Using Marten means Wax inherits a well-maintained, production-proven event sourcing implementation rather than building one from scratch, while the abstraction layer ensures the platform is not permanently coupled to any single library.
+**An event store built directly on PostgreSQL**: HiveAR's event store abstraction interface ([Wax Design Decision 1](WAX-0001-enriched-event-sourcing.md)) is implemented by the Foundation directly on PostgreSQL. A unique constraint on the aggregate and its sequence number gives optimistic concurrency, a row lock on the aggregate's state row serializes writes to one aggregate, and a high-water mark lets projections read the stream without skipping an event. No third-party event sourcing library sits between Wax and the database, so the table Wax specifies is exactly the table that exists, and the abstraction layer still keeps the rest of the platform from depending on that implementation.
 
 **Enterprise operational maturity**: PostgreSQL carries decades of production deployment history across industries with data integrity requirements at least as demanding as debt collection. Logical replication, streaming replication, point-in-time recovery, tablespace management, connection pooling via pgBouncer, and automatic failover via Patroni are all well-understood, well-documented capabilities with large operational communities. The high availability and disaster recovery architecture for Wax deployments is built directly on these capabilities and is described in [Wax Design Decision 24](WAX-0024-high-availability-disaster-recovery-and-distributed-workloads.md).
 
@@ -43,11 +43,15 @@ Several newer entrants to the AR software market have selected MongoDB, typicall
 
 ## Application Data Access Pattern
 
-Application code accesses PostgreSQL through Entity Framework Core (EF Core), organized using a repository and query-object discipline. Business logic, command handlers, projection workers, and query handlers receive typed objects from repositories and query objects rather than executing SQL themselves. Raw SQL is permitted only inside the data access layer and only where a justified PostgreSQL-specific feature is in use.
+Application code accesses PostgreSQL through the Django object-relational mapper. Authoritative state tables and read models are Django models. Command handlers load and save state models, and query handlers read from read models through querysets. Raw SQL is permitted only in migrations, in the event store, in the projection reader, and where a justified PostgreSQL-specific feature is in use.
 
-This discipline serves three independent purposes. It keeps PostgreSQL-specific syntax and feature use confined to a single layer rather than scattered across the codebase. It allows database access to be mocked or stubbed cleanly for unit testing. It establishes a clean seam at which a third party could substitute a different EF Core provider if they were willing to undertake that work, without requiring the Foundation to design around portability as a goal.
+This discipline serves three independent purposes. It keeps PostgreSQL-specific syntax and feature use confined to a few named places rather than scattered across the codebase. It lets handlers be tested against a real database through Django's test framework, with each test wrapped in a transaction. It establishes a clean seam at which a third party could substitute a different Django database backend if they were willing to undertake that work, without requiring the Foundation to design around portability as a goal.
 
-EF Core supplies the change tracking, migration generation, query translation, and connection management that this layer would otherwise need to build. The Foundation does not maintain a custom data access framework above EF Core. Marten supplies the equivalent layer for the event store interface as established in [Wax Design Decision 1](WAX-0001-enriched-event-sourcing.md). Repository and query-object code outside the event store path uses EF Core directly.
+Django supplies the migration generation, query translation, and connection management that this layer would otherwise need to build. The Foundation does not maintain a custom data access framework above it.
+
+Each Django app owns one PostgreSQL schema under [Wax Design Decision 4](WAX-0004-schema-architecture-and-module-extension-pattern.md). Django has no first-class support for multiple schemas, so Wax adopts a convention: every model declares a schema-qualified table name, each app's first migration creates its schema, and a system check rejects any model whose table falls outside its app's schema. Tables whose definition Wax specifies exactly, core.event above all, are created by hand-written SQL migrations and mapped as unmanaged, read-only models.
+
+Migrations run under an owner role used only by the release tooling. The application connects as a separate runtime role that cannot alter the schema and cannot update or delete events. Every migration is held to the compatibility rule in [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md): it must be safe to apply while the previous release's code is still running. Features that other decisions have the platform perform against the schema or the event store at an administrator's request, including module installation and removal, user-defined tables, the generated read layer, the hash backfill, and break-glass modification, do not run with the runtime role. That decision names the path each one takes.
 
 ## PostgreSQL-Specific Features Are Embraced
 
@@ -59,9 +63,9 @@ A design that preserved portability would require the Foundation to forgo these 
 
 ## Third-Party Database Provider Forks
 
-Because EF Core supports multiple providers natively, the data access seam in the Foundation's codebase does not prevent a third party from forking the platform and implementing a SQL Server, MySQL, Oracle, or other provider. Such a fork would need to replace or substitute every PostgreSQL-specific feature use in the codebase, write a parallel set of migrations, supply equivalents for the read layer features that depend on PostgreSQL semantics, and maintain its fork against ongoing upstream changes. The Foundation neither commits to facilitating this work nor designs around it.
+Because Django supports multiple database backends natively, the data access seam in the Foundation's codebase does not prevent a third party from forking the platform and implementing a SQL Server, MySQL, Oracle, or other provider. Such a fork would need to replace or substitute every PostgreSQL-specific feature use in the codebase, write a parallel set of migrations, supply equivalents for the read layer features that depend on PostgreSQL semantics, and maintain its fork against ongoing upstream changes. The Foundation neither commits to facilitating this work nor designs around it.
 
-The articulation matters for a specific question that mid-market AR agencies running SQL Server-only infrastructure are likely to ask: can HiveAR run on SQL Server? The accurate answer is that the architecture does not forbid it, that EF Core's provider model makes it technically feasible, and that the Foundation does not support, document, or design for that path. An organization with the engineering capacity and motivation to maintain such a fork could do so. The Foundation's mainline distribution targets PostgreSQL exclusively.
+The articulation matters for a specific question that mid-market AR agencies running SQL Server-only infrastructure are likely to ask: can HiveAR run on SQL Server? The accurate answer is that the architecture does not forbid it, that Django's database backend model makes it technically feasible, and that the Foundation does not support, document, or design for that path. An organization with the engineering capacity and motivation to maintain such a fork could do so. The Foundation's mainline distribution targets PostgreSQL exclusively.
 
 ## Implementation Phasing
 

@@ -2,9 +2,9 @@
 id: HIVE-0005
 title: "Account Structure and Balance Composition"
 status: Accepted
-version: 1.0
+version: 1.1
 area: hivear
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -34,6 +34,10 @@ An account's balance is never a number that someone edits. It is the running sum
 A balance bucket is a typed, labeled component of an account's balance that carries attributes rather than hard-coded meaning. A bucket definition records whether the bucket bears interest, whether it counts toward any current-due amount, how payments apply to it, how commission and remittance treat it, and its origin, whether it was placed by the client or assessed by the agency after acquisition. The client-interest-versus-agency-interest distinction is then an instance of the origin attribute rather than a special case, and the legal module's pre-judgment and post-judgment interest are two interest buckets with different origins and accrual rules.
 
 Bucket definitions live in an agency-level registry, seeded by the loaded debt-type modules and extended by the agency, and a definition added for one purpose is reusable everywhere. Buckets attach to accounts sparsely and dynamically: a bucket attaches to an account only where it carries a balance, so defining a rental-fee bucket does not place a zero row on every credit card account. A bucket instance on an account is the running sum of the postings to that bucket on that account, and the account's balance is the sum of its attached instances.
+
+## Amounts Are Integers in Minor Units
+
+Every monetary amount in a posting, a bucket instance, and an event payload is stored as an integer count of the currency's minor unit, alongside an ISO 4217 currency code on the account. Decimal and floating-point representations are not used. Integer arithmetic makes the allocation and rounding rules in [HiveAR Design Decision 7](HIVE-0007-payment-application-and-waterfall.md) exact, and it keeps the hash input in [Wax Design Decision 13](../wax/WAX-0013-event-chain-integrity-and-tamper-evidence.md) reproducible across languages and serializers. Formatting an amount for display is a frontend concern, but how many minor-unit digits a currency has is not: the server states it for every currency the installation takes, and no client derives it from its own locale data, which differs between browsers and from the published standard for some currencies. How interest accrual carries fractions of a minor unit between postings is left to the accrual decision.
 
 ## Three Amount Categories
 

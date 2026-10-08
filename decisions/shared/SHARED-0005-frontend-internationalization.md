@@ -2,9 +2,9 @@
 id: SHARED-0005
 title: "Frontend Internationalization"
 status: Accepted
-version: 1.0
+version: 1.1
 area: shared
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -23,9 +23,9 @@ This means adding a new language to the platform requires no frontend code chang
 
 ## UI Chrome Layer: Resource Bundles
 
-User interface strings that are not domain data, including button labels, navigation items, page titles, field labels, placeholder text, error messages, validation messages, and help text, will be stored in .NET resource files (.resx) organized by locale. The active locale is resolved at session start using the same three-level fallback chain defined in Wax Design Decision 11: session preference first, system default second, installation default third.
+User interface strings that are not domain data, including button labels, navigation items, page titles, field labels, placeholder text, error messages, validation messages, and help text, will be stored in message catalogs in ICU MessageFormat, one per locale. The core catalog ships with the frontend, and a Language Pack's catalog is served by the API, so a pack installed after the frontend was built still takes effect. The active locale is resolved at session start using the same three-level fallback chain defined in Wax Design Decision 11: session preference first, system default second, installation default third.
 
-No UI string will be hardcoded in a Blazor component. Every visible string will reference a resource key. This is enforced as a contributor convention and will be validated through code review. A component that contains a hardcoded English string is a localization defect, not a style preference.
+No UI string will be hardcoded in a frontend component. Every visible string will reference a message key. This is enforced as a contributor convention and will be validated through code review. A component that contains a hardcoded English string is a localization defect, not a style preference.
 
 ## Layout Directionality: RTL Support
 
@@ -47,7 +47,7 @@ Text expansion: German, Dutch, Finnish, and other European languages routinely p
 
 CJK font fallbacks: the frontend font stack must include system CJK font fallbacks to ensure Chinese, Japanese, and Korean characters render correctly on systems where the primary web font does not cover those code points.
 
-Number, date, and currency formatting: the frontend will never format these values directly. Formatted values will be received pre-rendered from the API, or the browser Intl API will be used with the active locale. Custom formatting logic in frontend code is prohibited.
+Number, date, and currency formatting: the frontend will never format these values directly. Formatted values will be received pre-rendered from the API, or the browser Intl API will be used with the active locale. Custom formatting logic in frontend code is prohibited. For money, the number of minor-unit digits comes from the API, as [HiveAR Design Decision 5](../hivear/HIVE-0005-account-structure-and-balance-composition.md) requires, and is passed to the formatter.
 
 Vertical text: traditional vertical text rendering used in some East Asian typographic contexts is not a consideration for HiveAR. Modern business software in Japanese, Chinese, and Korean markets uses horizontal LTR layout as the standard. Vertical text layout support is out of scope.
 
@@ -63,10 +63,10 @@ Vertical text: traditional vertical text rendering used in some East Asian typog
 
 ## Implications For Contributors
 
-No UI string may be hardcoded in a component. All visible text must reference a resource key in the appropriate .resx file.
+No UI string may be hardcoded in a component. All visible text must reference a message key in the appropriate catalog.
 
 All CSS must use logical properties. Physical directional properties are not permitted in the frontend stylesheet.
 
 Contributors adding new reference value types must ensure the API returns resolved, locale-aware labels for those values. The frontend must not perform reference value label resolution.
 
-New Language Pack modules must provide resource bundle files covering all UI chrome keys defined in the core resource file. A Language Pack that omits keys will cause missing string errors in the UI and will be flagged as i18n non-compliant per [Wax Design Decision 10](../wax/WAX-0010-module-registry.md).
+New Language Pack modules must provide a message catalog covering every key in the core catalog. A Language Pack that omits keys will cause missing string errors in the UI and will be flagged as i18n non-compliant per [Wax Design Decision 10](../wax/WAX-0010-module-registry.md).

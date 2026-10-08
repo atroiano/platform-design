@@ -2,9 +2,9 @@
 id: WAX-0001
 title: "Enriched Event Sourcing"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -35,7 +35,7 @@ There is no per-entity events table. A contact.phone_corrected event and a payme
 
 ## Authoritative State Tables
 
-Each aggregate-backed entity type has an authoritative state table in the core schema (e.g., ar.account, ar.payment, ar.entity). These tables always reflect the current state of their entities and are written in the same database transaction as the event that caused the state change. The atomicity of this write is a critical invariant: the event and the state update either both succeed or both fail. They are never written independently.
+Each aggregate-backed entity type has an authoritative state table in the schema of the layer that owns it (e.g., ar.account, ar.payment, ar.entity). These tables always reflect the current state of their entities and are written in the same database transaction as the event that caused the state change. The atomicity of this write is a critical invariant: the event and the state update either both succeed or both fail. They are never written independently.
 
 Authoritative state tables serve two purposes. First, they provide a fast, always-current starting point for command handlers that need to load an aggregate before processing a command. Second, they provide a transactionally consistent current-state reference that does not depend on the asynchronous propagation lag inherent in read models.
 
@@ -51,7 +51,7 @@ Because read models are updated asynchronously, there is a brief window after a 
 
 ## The Event Store Abstraction Layer
 
-The rest of the application never communicates directly with PostgreSQL for event store operations. All event store interactions pass through a defined C# interface. PostgreSQL is one implementation of that interface. This abstraction means the underlying event store technology can be changed in the future without modifying any application code outside the implementation layer.
+The rest of the application never communicates directly with PostgreSQL for event store operations. All event store interactions pass through a defined Python interface, a typed protocol published by Wax. The implementation Wax ships writes directly to PostgreSQL and is maintained by the Foundation. No third-party event sourcing library is used, as [Wax Design Decision 34](WAX-0034-primary-programming-language-and-application-framework.md) proposes. This abstraction means the underlying event store technology can be changed in the future without modifying any application code outside the implementation layer.
 
 ## The interface defines a focused set of operations:
 
@@ -59,7 +59,21 @@ append(streamId, expectedVersion, events): writes one or more events to a stream
 
 loadStream(streamId, fromVersion): returns events for a given aggregate from a specified version onward. Command handlers use this after loading the authoritative state table to pick up any events written since the state was last persisted.
 
-subscribe(streamId, fromVersion, handler): registers a projection or read model to receive events as they are written. This is the mechanism that keeps read models current without polling.
+subscribe(streamId, fromVersion, handler): registers a projection or read model to receive events as they are written. This is the mechanism that keeps read models current. Callers do not poll; the reader described next does it for them, once, for every projection.
+
+## Reading the Stream Without Skipping
+
+A subscriber cannot simply read rows above the last global_sequence_number it saw. Sequence values are assigned at insert, not at commit, so a transaction holding a lower value can commit after a transaction holding a higher one. A reader that had already moved past the higher value would never see the lower one.
+
+The projection reader therefore delivers events in global_sequence_number order, and only up to a high-water mark: the highest sequence number below which no event can still appear. Global sequence order is also each aggregate's own order, because the row lock described in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md) means an aggregate's later event is always inserted after its earlier event has committed.
+
+The high-water mark is found without blocking writers. An insert trigger on core.event obtains the writing transaction's identifier before it takes the next sequence value, and it assigns global_sequence_number and recorded_at itself, so a writer cannot choose them. The reader periodically notes the sequence's current position and then allocates a transaction identifier of its own. Every event at or below the noted position belongs to a transaction older than that identifier. Once PostgreSQL reports that no older transaction is still running, every event at or below the noted position is either committed and visible or will never exist, and the mark advances to it. The sequence is created without caching, so that values are handed out in order across sessions. The mark is held in the reading process's memory and nowhere else. It is discarded whenever the database restarts, is replaced, or shows a sequence position below one already seen, which is what a restore or a failover looks like to a running process.
+
+Every consumer that reads core.event by a range of global_sequence_number reads only up to the high-water mark. That includes the delta checkpoint in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md), whose window never ends above the mark.
+
+Each projection keeps a checkpoint row holding the last global_sequence_number it handled. The checkpoint advances in the same transaction as the read model writes, so a handler sees each event exactly once. Because nothing at or below the mark can still appear, the checkpoint may pass sequence numbers that no event will ever carry, such as one consumed by a transaction that rolled back. The checkpoint holds nothing that is specific to one database cluster, so it remains correct after a backup is restored into a new one. A projection declares the aggregate types it covers. On those aggregates it stops, and records why, at any event it cannot handle and at any event type it neither handles nor has declared it ignores. It never skips an event, and the other projections continue. Projections are versioned, and a changed projection is built beside the old one, as [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md) specifies.
+
+One consequence follows for operators: a transaction left open for a long time holds the high-water mark, and every projection with it, until it ends. That includes a long migration and a long transaction in any other database of the same cluster. A restore that loads data into an already migrated schema must run with triggers disabled, as a full restore does, or the insert trigger will renumber the stream. Wax transactions are short by design, and monitoring should alert on any that are not.
 
 ## JSON Payload Model
 
@@ -89,7 +103,7 @@ Two distinct sequence numbers are stored in every core.event row. They serve dif
 
 **aggregate_sequence_number **is a per-aggregate ordinal that starts at 1 for the first event written for a given aggregate_pk_ref and increments by one for each subsequent event on that aggregate. It is the stored representation of the expectedVersion parameter in the event store abstraction interface's append call. When a command handler loads an aggregate and prepares to write an event, it passes the last known aggregate_sequence_number as expectedVersion. If another process wrote to that aggregate concurrently, the sequence will not match and the append is rejected, enforcing optimistic concurrency without a full table lock. The aggregate_sequence_number also defines the ordering within a per-aggregate hash chain: prior_event_hash at sequence N references the event_hash of the event at sequence N-1 for the same aggregate. No gaps are expected within a healthy chain; a gap is evidence of data loss or tampering.
 
-**global_sequence_number **is assigned by a single PostgreSQL SEQUENCE object (core.event_global_sequence_seq) and is monotonically increasing across the entire table, regardless of aggregate. It establishes a total ordering of all writes to the event store and serves as the window anchor for delta checkpoint hashing in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md). The global sequence is gap-tolerant by design: a transaction that acquires a sequence value and then rolls back leaves a gap. Checkpoint verification accounts for this; it does not assume a contiguous range. The UUID event_pk remains the surrogate primary key and deduplication mechanism. The two sequence numbers serve ordering and integrity purposes that a UUID cannot provide.
+**global_sequence_number **is assigned by a single PostgreSQL SEQUENCE object (core.seq_event_global_sequence) and is monotonically increasing across the entire table, regardless of aggregate. It establishes a total ordering of all writes to the event store and serves as the window anchor for delta checkpoint hashing in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md). The global sequence is gap-tolerant by design: a transaction that acquires a sequence value and then rolls back leaves a gap. Checkpoint verification accounts for this; it does not assume a contiguous range. The UUID event_pk remains the surrogate primary key and deduplication mechanism. The two sequence numbers serve ordering and integrity purposes that a UUID cannot provide.
 
 ## Hash Fields
 
@@ -137,9 +151,9 @@ The following example walks through a payment being posted, showing every layer 
 > **SCENARIO**: Collector posts a $500 payment on account-123
 >
 > 1. Collector submits Post Payment $500 command via the API.
-> 2. Command handler loads ar.account where account_pk = account-123. Current balance: $1,500. Account is active. Command is valid.
+> 2. Command handler loads ar.account where account_pk = account-123. Its principal balance bucket holds $1,500. Account is active. Command is valid.
 > 3. PaymentPosted event is written to core.event (see payload below).
-> 4. ar.account.current_balance is updated to $1,000 in the same transaction. Steps 3 and 4 succeed or fail together. They are never split.
+> 4. The account's principal balance bucket row is updated to $1,000 in the same transaction. There is no balance column on ar.account, and amounts are stored as integers in minor currency units, both as [HiveAR Design Decision 5](../hivear/HIVE-0005-account-structure-and-balance-composition.md) specifies. Steps 3 and 4 succeed or fail together. They are never split.
 > 5. Event is published to subscribers asynchronously.
 > 6. workflow module projection updates collector_queue_read_model: new balance, last payment date, next action recalculated.
 > 7. reporting module projection updates aging_read_model: balance recalculated in the appropriate aging bucket.
@@ -157,8 +171,8 @@ The following example walks through a payment being posted, showing every layer 
 > actor_pk_ref: "user-0042"
 > actor_type: "user"
 > recorded_at: "2026-03-30T14:22:01Z"
-> prior_value: { "current_balance": 1500.00 }
-> new_value: { "current_balance": 1000.00 }
+> prior_value: { "balance_buckets": { "principal": 150000 } }
+> new_value: { "balance_buckets": { "principal": 100000 } }
 > reason_code_fk: "uuid-of-payment-received-ref-value"
 > source: "collector_ui"
 > correlation_pk_ref: null  (no workflow triggered this command)
@@ -181,9 +195,9 @@ The following illustrates how the layers of the architecture relate to each othe
 | **Schema** | **Table / Object** | **Purpose** |
 | --- | --- | --- |
 | core | core.event | Single append-only event store for all aggregate types |
-| core | ar.account | Authoritative current state for accounts |
-| core | ar.entity | Authoritative current state for entities (persons and businesses) |
-| core | ar.payment | Authoritative current state for payments |
+| ar | ar.account | Authoritative current state for accounts |
+| ar | ar.entity | Authoritative current state for entities (persons and businesses) |
+| ar | ar.payment | Authoritative current state for payments |
 | workflow | workflow.collector_queue_read_model | Read model for collector queue view, owned by workflow module |
 | reporting | reporting.aging_read_model | Read model for aging reports, owned by reporting module |
 | healthcare | healthcare.account_extension | Satellite table extending ar.account for healthcare module |
@@ -232,7 +246,7 @@ A regulator or auditor who questions whether an account's current state is accur
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Full implementation. The event store is foundational and non-negotiable. Ship the complete enriched event sourcing architecture: single core.event table, full standard payload schema, prior and new values on all state-change events (keyed JSON objects), atomic event + authoritative state table writes, event store abstraction layer (Marten), aggregate_sequence_number for optimistic concurrency, global_sequence_number for stream ordering, correlation_pk_ref for linking related events. Hash chain columns (event_hash, prior_event_hash) are present in the schema but may be populated with placeholder values; chain computation activates in v2. PII encryption envelopes are deferred; PII is stored as plaintext JSON in v1. This is acceptable for early adopters on their own infrastructure but must be documented as a known limitation.
+**Wax v1 (MVP):** Full implementation. The event store is foundational and non-negotiable. Ship the complete enriched event sourcing architecture: single core.event table, full standard payload schema, prior and new values on all state-change events (keyed JSON objects), atomic event + authoritative state table writes, event store abstraction layer with the Foundation's own PostgreSQL implementation, the insert trigger and high-water mark reader, aggregate_sequence_number for optimistic concurrency, global_sequence_number for stream ordering, correlation_pk_ref for linking related events. Hash chain columns (event_hash, prior_event_hash) are present in the schema but may be populated with placeholder values; chain computation activates in v2. PII encryption envelopes are deferred; PII is stored as plaintext JSON in v1. This is acceptable for early adopters on their own infrastructure but must be documented as a known limitation.
 
 **Wax v2:** Hash chain computation activated with backfill utility for v1 data. PII encryption envelope and Wax Security Module (WSM) integration. Event store partitioning strategy (by time range) for large installations.
 
@@ -242,7 +256,7 @@ A regulator or auditor who questions whether an account's current state is accur
 
 ## Implications For Contributors
 
-Every state change must be expressed as a command that produces one or more events. Direct mutation of authoritative state tables outside the event pipeline is not permitted.
+Every state change must be expressed as a command that produces one or more events. Direct mutation of authoritative state tables outside the event pipeline is not permitted. The framework enforces this at runtime: a state model raises an error when it is saved outside a command handler.
 
 Events must conform to the standard payload schema. Module-specific events may extend the schema but may not override required fields.
 
@@ -254,4 +268,4 @@ Reason codes must be drawn from the published Reason Code Registry. If a require
 
 Read models are owned by the module that needs them. A module requiring a specific query shape defines and maintains its own projection in its own schema.
 
-No module may query core.event directly for user-facing workloads. All user-facing queries must go through read models.
+No module may query core.event directly for user-facing workloads. All user-facing queries must go through read models. The one exception is the compliance audit history query, which reads core.event by aggregate as [Wax Design Decision 2](WAX-0002-cqrs-model.md) describes.

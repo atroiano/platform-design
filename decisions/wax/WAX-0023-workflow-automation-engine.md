@@ -2,9 +2,9 @@
 id: WAX-0023
 title: "Workflow Automation Engine"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -25,7 +25,7 @@ Every event type declares a key ring: a typed list of primary key references to 
 
 Every event carries two key rings. The pre_state_keys ring points to entity state before the triggering change. The post_state_keys ring points to entity state after the triggering change. For post-events, pre_state_keys resolves against the prior_value fields already stored in core.event by the enriched event sourcing architecture, and post_state_keys resolves against the current committed authoritative state tables. For pre-events, pre_state_keys resolves against the current authoritative state tables (which are the pre-change values) and post_state_keys resolves against a provisional state object constructed from the proposed write, held in a temporary evaluation context for the duration of the pre-event workflow execution.
 
-Conditions are always expressed as key ring traversal. For example: post_state.account.current_balance, or pre_state.address.postal_code. The engine resolves these consistently regardless of whether the value comes from committed database state or a provisional context. This means conditions are written identically for pre and post events, which is a significant contributor-friendliness benefit.
+Conditions are always expressed as key ring traversal. For example: post_state.account.status, or pre_state.address.postal_code. The engine resolves these consistently regardless of whether the value comes from committed database state or a provisional context. This means conditions are written identically for pre and post events, which is a significant contributor-friendliness benefit.
 
 The event payload may also carry event-specific properties, for example an address_changed event carries the full before and after address fields directly. These are redundant with what is reachable through the key ring but are provided as a convenience. The payload is the permanent audit record. The key rings are the condition evaluation interface. Both surfaces expose the same values through different access paths.
 
@@ -55,7 +55,7 @@ A workflow action can instruct the engine to suppress downstream workflow evalua
 
 ## Pluggable Action Type Architecture
 
-The workflow engine defines an action type interface in C#. Any class implementing the interface is a valid action type. Wax ships with a built-in library. Modules and Packs contribute additional action types. Power users with C# skills may implement and install their own local action types. A LexisNexis address scrubbing action type shipped as a Pack, for example, handles all communication with the LexisNexis endpoint, parses the response, and populates declared output schema fields that are then available as downstream conditions in the workflow designer.
+The workflow engine defines an action type interface in Python. Any class implementing the interface is a valid action type. Wax ships with a built-in library. Modules and Packs contribute additional action types. Power users with Python skills may implement and install their own local action types. A LexisNexis address scrubbing action type shipped as a Pack, for example, handles all communication with the LexisNexis endpoint, parses the response, and populates declared output schema fields that are then available as downstream conditions in the workflow designer.
 
 > **ACTION TYPE INTERFACE DECLARATION**
 >
@@ -77,7 +77,7 @@ The workflow engine defines an action type interface in C#. Any class implementi
 >
 > **Has_retry_with_wait**: retry handling is internal to the action. Retry count and inter-attempt delay are properties of the action configuration, not graph cycles.
 
-Custom action types installed by power users bypass the Collective's quality and security review. A custom C# action can do anything C# can do: arbitrary database queries, external API calls, file system operations. This is a deliberate extensibility feature and a deliberate risk. The installation UI prominently warns that custom action types are the installing agency's full responsibility. A sandboxed execution mode for custom action types is a named future goal for future consideration.
+Custom action types installed by power users bypass the Collective's quality and security review. A custom Python action can do anything Python can do: arbitrary database queries, external API calls, file system operations. This is a deliberate extensibility feature and a deliberate risk. The installation UI prominently warns that custom action types are the installing agency's full responsibility. A sandboxed execution mode for custom action types is a named future goal for future consideration.
 
 ## Condition Builder: Field Picker and Query Builder
 
@@ -155,7 +155,7 @@ Batch workflows support the same three state toggles as event-triggered workflow
 
 Critical v1 requirements: the event type registry must exist (every event type declares its scope); workflow execution must produce events through normal command handlers (no shortcuts bypassing the event pipeline); the workflow definition schema should be forward-compatible (store v1 rules in core.workflow_definition with a nullable graph_json column for v2 DAG data).
 
-**Wax v2:** DAG execution within single workflow definitions. Pre-event and post-event support. Pluggable action type interface (C# interface). Two-keyring condition resolution. Rejection propagation. Workflow designer UI (visual graph builder). Batch workflows. Workflow state toggles.
+**Wax v2:** DAG execution within single workflow definitions. Pre-event and post-event support. Pluggable action type interface (Python interface). Two-keyring condition resolution. Rejection propagation. Workflow designer UI (visual graph builder). Batch workflows. Workflow state toggles.
 
 **Wax v3+:** Cross-workflow chain detection and cycle prevention. Downstream workflow suppression. Execution chain context and provenance. Scheduled future events with re-evaluation. Workflow provenance and version tracking (clone-and-override model).
 

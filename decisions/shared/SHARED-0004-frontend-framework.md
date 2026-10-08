@@ -1,7 +1,7 @@
 ---
 id: SHARED-0004
 title: "Frontend Framework"
-status: Accepted
+status: Superseded
 version: 1.0
 area: shared
 date: 2026-08-30
@@ -10,6 +10,8 @@ license: CC-BY-4.0
 ---
 
 # Shared Design Decision 4: Frontend Framework
+
+> **Superseded in this proposal.** [Shared Design Decision 9](SHARED-0009-reference-frontend-framework.md) would supersede this decision. Until the Foundation adopts that proposal, this file remains its commitment. It is retained afterward as the record of that commitment.
 
 ## Decision
 

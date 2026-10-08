@@ -2,9 +2,9 @@
 id: SHARED-0006
 title: "File Interface Engine"
 status: Accepted
-version: 1.0
+version: 1.1
 area: shared
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -21,9 +21,9 @@ The Wax layer provides the file interface engine's structural foundations: the l
 
 Layout Definition Model
 
-A layout definition describes the grammar of a file independent of direction. The same definition governs both inbound parsing and outbound writing. A layout definition is a tree of record type definitions. Each record type carries a discriminator rule, a role (header, detail, subtotal, or trailer), and an ordered list of field definitions. Field definitions specify position and length for fixed-width formats, or delimiter position for delimited formats, plus format masks for dates, numbers, and typed values. Hardcoded values, calculated subtotals, record counters, and run-date stamps are declared as synthetic fields and resolved during the write pass. The layout engine is implemented natively in C# with no external ETL library dependency.
+A layout definition describes the grammar of a file independent of direction. The same definition governs both inbound parsing and outbound writing. A layout definition is a tree of record type definitions. Each record type carries a discriminator rule, a role (header, detail, subtotal, or trailer), and an ordered list of field definitions. Field definitions specify position and length for fixed-width formats, or delimiter position for delimited formats, plus format masks for dates, numbers, and typed values. Hardcoded values, calculated subtotals, record counters, and run-date stamps are declared as synthetic fields and resolved during the write pass. The layout engine is implemented natively in Python with no external ETL library dependency.
 
-Agencies whose file formats cannot be expressed in the standard layout model may implement a published C# interface as a custom parser and register it through the module registry. Custom parsers bypass Collective review and are the installing agency's responsibility.
+Agencies whose file formats cannot be expressed in the standard layout model may implement a published Python interface as a custom parser and register it through the module registry. Custom parsers bypass Collective review and are the installing agency's responsibility.
 
 Import Pipeline: Two Phases
 
@@ -107,7 +107,7 @@ HiveAR provides default post-record trigger registrations for new business and p
 
 ## Implementation Phasing
 
-**Wax v1 (MVP)**: Layout engine and native C# parser. Two-phase import pipeline with staging area, exceptions queue, and three-option resolution. Export engine (delta and inventory). Mapping and conditional logic layer. Post-record trigger interface. Pre-approval gate hook interface. Auto-approve configuration. Custom parser registration interface. Schema for import and export definitions. Not included in v1: layout designer UI, mapping designer UI, value translation table management UI.
+**Wax v1 (MVP)**: Layout engine and native Python parser. Two-phase import pipeline with staging area, exceptions queue, and three-option resolution. Export engine (delta and inventory). Mapping and conditional logic layer. Post-record trigger interface. Pre-approval gate hook interface. Auto-approve configuration. Custom parser registration interface. Schema for import and export definitions. Not included in v1: layout designer UI, mapping designer UI, value translation table management UI.
 
 **HiveAR v1 (MVP)**: Import category registrations (net-new base class and four subtypes). Mandatory balancing gate for New Business and Payment imports. Aggregate registrations for accounts, entities, and payments.
 

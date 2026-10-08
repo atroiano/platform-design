@@ -2,9 +2,9 @@
 id: WAX-0024
 title: "High Availability, Disaster Recovery, and Distributed Workloads"
 status: Accepted
-version: 1.0
+version: 1.1
 area: wax
-date: 2026-08-30
+date: 2026-10-08
 supersedes: none
 license: CC-BY-4.0
 ---
@@ -111,11 +111,11 @@ When sustained event throughput reaches a level where polling latency becomes op
 
 The architecture is designed for this transition. The pending_workflow_evaluation outbox table defines the interface between event writing and workflow evaluation, and that interface does not change when the broker is introduced. The command handler write path, the per-aggregate locking and hash chain described in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md), and the SKIP LOCKED claiming all remain exactly as specified. The broker is layered on top purely as a notification mechanism: an operational upgrade, not an architectural redesign. The Collective will document the broker integration as an optional configuration available to high-volume deployments, and a deployment that never reaches the inflection point continues to run the polling model unchanged.
 
-The application-side broker integration will use Wolverine, the .NET messaging library that shares authorship with Marten, the event store library adopted in [Wax Design Decision 1](WAX-0001-enriched-event-sourcing.md). Wolverine is selected over MassTransit primarily on licensing grounds. MassTransit moved to a commercial license with its version 9 release in early 2026, and its final open-source version loses support at the end of 2026; neither a per-application subscription cost nor a discretionary free-tier qualification is a sound foundation for a nonprofit-governed project intended to remain freely available. Wolverine's core, including its transports and its messaging layer, remains under the permissive MIT license, and its commercial offerings are confined to separate monitoring and advanced-feature add-ons that this integration does not require.
+The application-side broker integration will use Kombu, the messaging transport library that underlies Celery. Kombu is published under the BSD 3-Clause license and supports both RabbitMQ and Redis-protocol brokers such as Valkey through one interface. Celery itself is not adopted: Wax already keeps a durable work queue in PostgreSQL, and a second task system would duplicate it.
 
-Wolverine will be adopted in a deliberately narrow slice: the broker transport, a best-effort publisher that emits a wake-up notification after a command transaction commits, and a consumer that triggers the existing SKIP LOCKED claim-and-process cycle on the pending_workflow_evaluation table. Wolverine's mediator, its transactional outbox, and its Marten aggregate handler workflow are intentionally not adopted. The wake-up notification is published outside the command transaction, so the messaging library never participates in the integrity-critical write described in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md). This narrow footprint keeps Wolverine confined to the role of a transport and fully replaceable.
+Kombu will be adopted in a deliberately narrow slice: the broker transport, a best-effort publisher that emits a wake-up notification after a command transaction commits, and a consumer that triggers the existing SKIP LOCKED claim-and-process cycle on the pending_workflow_evaluation table. The wake-up notification is published outside the command transaction, so the messaging library never participates in the integrity-critical write described in [Wax Design Decision 13](WAX-0013-event-chain-integrity-and-tamper-evidence.md). This narrow footprint keeps Kombu confined to the role of a transport and fully replaceable.
 
-Correctness does not depend on the notification being delivered. The broker may provide at-least-once delivery, a notification may be lost, and the same notification may reach more than one worker; in every case the SKIP LOCKED claim on the durable outbox table deduplicates and serializes the actual work, and the retained backstop sweep recovers anything a lost notification missed. Wolverine supports both candidate brokers, RabbitMQ through its native transport and Valkey through its Redis transport, so the operator's broker selection remains open. The integration is an optional, operator-enabled configuration targeted at Wax v3 and later; a deployment below the inflection point installs neither the broker nor Wolverine.
+Correctness does not depend on the notification being delivered. The broker may provide at-least-once delivery, a notification may be lost, and the same notification may reach more than one worker; in every case the SKIP LOCKED claim on the durable outbox table deduplicates and serializes the actual work, and the retained backstop sweep recovers anything a lost notification missed. Kombu supports both candidate brokers, RabbitMQ through its AMQP transport and Valkey through its Redis transport, so the operator's broker selection remains open. The integration is an optional, operator-enabled configuration targeted at Wax v3 and later; a deployment below the inflection point installs neither the broker nor Kombu.
 
 ## The Collective's Responsibility Boundary
 
@@ -127,11 +127,11 @@ Correctness does not depend on the notification being delivered. The broker may 
 
 ## Implementation Phasing
 
-**Wax v1 (MVP):** Single-node deployment. Single PostgreSQL instance, single application instance. No SKIP LOCKED coordination. Standard PostgreSQL backup guidance (pg_dump, WAL archiving).
+**Wax v1 (MVP):** Single-node deployment. Single PostgreSQL instance, and a single application stack in normal running. During an upgrade two application stacks run side by side under [Shared Design Decision 10](../shared/SHARED-0010-release-rollout-blue-green-cutover-and-migration-compatibility.md), coordinated by the projection checkpoint lock. No other SKIP LOCKED coordination. Standard PostgreSQL backup guidance (pg_dump, WAL archiving).
 
 **Wax v2:** Docker Compose HA reference (PostgreSQL primary + streaming replica). Stateless application tier with multiple instances behind a load balancer. SKIP LOCKED for distributed batch job coordination. pgBouncer connection pooling.
 
-**Wax v3+:** Patroni-based automatic failover. Message broker integration via Wolverine (RabbitMQ or Valkey) for high-volume event fan-out. Chunk-based batch parallelism.
+**Wax v3+:** Patroni-based automatic failover. Message broker integration via Kombu (RabbitMQ or Valkey) for high-volume event fan-out. Chunk-based batch parallelism.
 
 **Breaking change risk: NONE.** HA is infrastructure, not schema.
 
