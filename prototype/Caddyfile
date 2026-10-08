@@ -1,0 +1,32 @@
+# TLS termination and routing for a blue-green pair (SHARED-0010).
+# routes/live.caddy names the color that takes user traffic. routes/preview.caddy
+# names the other one, reachable only on the preview port for testing before
+# cutover. deploy/bluegreen.sh rewrites those two files and reloads Caddy,
+# which swaps the configuration without dropping connections.
+#
+# "tls internal" issues a locally trusted certificate for evaluation; replace
+# it with a real hostname for anything else.
+
+{
+	# Plain HTTP stays available on the live port for local evaluation.
+	auto_https disable_redirects
+}
+
+https://localhost {
+	tls internal
+	encode zstd gzip
+	import routes/live.caddy
+}
+
+:80 {
+	encode zstd gzip
+	import routes/live.caddy
+}
+
+# The preview route sends requests to the idle color's preview listener
+# (port 8001), where the application refuses to write. That is decided by the
+# port, not by a header, so nothing a client sends can undo it.
+:8081 {
+	encode zstd gzip
+	import routes/preview.caddy
+}

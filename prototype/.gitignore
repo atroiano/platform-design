@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+deploy/state.env
+deploy/*.tmp
+deploy/.drill/
+deploy/proxy/
+__pycache__/
+staticfiles/
+frontend_dist/
